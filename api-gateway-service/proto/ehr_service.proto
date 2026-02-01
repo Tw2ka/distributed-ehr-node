@@ -1,0 +1,104 @@
+syntax = "proto3";
+
+package ehr;
+
+// Service definition
+service EhrService {
+    // Create a new patient record
+    rpc CreatePatient(CreatePatientRequest) returns (PatientResponse);
+
+    // Get a patient by UUID
+    rpc GetPatient(GetPatientRequest) returns (PatientResponse);
+
+    // Get all patients with pagination
+    rpc GetAllPatients(GetAllPatientsRequest) returns (GetAllPatientsResponse);
+
+    // Search patient by patient_id
+    rpc SearchPatientById(SearchPatientByIdRequest) returns (PatientResponse);
+
+    // Update a patient record
+    rpc UpdatePatient(UpdatePatientRequest) returns (PatientResponse);
+
+    // Delete a patient record
+    rpc DeletePatient(DeletePatientRequest) returns (DeletePatientResponse);
+}
+
+// Blood type enumeration
+enum BloodType {
+    BLOOD_TYPE_UNSPECIFIED = 0;
+    A_POSITIVE = 1;
+    A_NEGATIVE = 2;
+    B_POSITIVE = 3;
+    B_NEGATIVE = 4;
+    AB_POSITIVE = 5;
+    AB_NEGATIVE = 6;
+    O_POSITIVE = 7;
+    O_NEGATIVE = 8;
+}
+
+// Patient message
+message PatientMessage {
+    string id = 1;  // UUID as string
+    string patient_id = 2;
+    string name = 3;
+    string birth_date = 4;  // ISO format date string (YYYY-MM-DD)
+    int32 height = 5;
+    int32 weight = 6;
+    BloodType blood_type = 7;
+    string diagnosis = 8;
+    string created_at = 9;  // ISO format datetime string
+    string updated_at = 10;  // ISO format datetime string
+}
+
+// Request messages
+message CreatePatientRequest {
+    string patient_id = 1;
+    string name = 2;
+    string birth_date = 3;  // ISO format date string (YYYY-MM-DD)
+    int32 height = 4;
+    int32 weight = 5;
+    BloodType blood_type = 6;
+    string diagnosis = 7;
+}
+
+message GetPatientRequest {
+    string patient_uuid = 1;  // UUID as string
+}
+
+message GetAllPatientsRequest {
+    int32 skip = 1;
+    int32 limit = 2;
+}
+
+message SearchPatientByIdRequest {
+    string patient_id = 1;
+}
+
+message UpdatePatientRequest {
+    string patient_uuid = 1;  // UUID as string
+    optional string patient_id = 2;
+    optional string name = 3;
+    optional string birth_date = 4;  // ISO format date string
+    optional int32 height = 5;
+    optional int32 weight = 6;
+    optional BloodType blood_type = 7;
+    optional string diagnosis = 8;
+}
+
+message DeletePatientRequest {
+    string patient_uuid = 1;  // UUID as string
+}
+
+// Response messages
+message PatientResponse {
+    PatientMessage patient = 1;
+}
+
+message GetAllPatientsResponse {
+    repeated PatientMessage patients = 1;
+}
+
+message DeletePatientResponse {
+    bool success = 1;
+    string message = 2;
+}
