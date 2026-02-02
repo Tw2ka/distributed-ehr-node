@@ -1,30 +1,33 @@
 import grpc
+from datetime import date, datetime
+from google.protobuf.struct_pb2 import Struct
+from google.protobuf.json_format import MessageToDict
 from proto import ehr_service_pb2_grpc, ehr_service_pb2
-from models import BloodType
 
 
-# Mapping between API models and protobuf blood types
-BLOOD_TYPE_TO_PROTO = {
-    BloodType.A_POSITIVE: ehr_service_pb2.A_POSITIVE,
-    BloodType.A_NEGATIVE: ehr_service_pb2.A_NEGATIVE,
-    BloodType.B_POSITIVE: ehr_service_pb2.B_POSITIVE,
-    BloodType.B_NEGATIVE: ehr_service_pb2.B_NEGATIVE,
-    BloodType.AB_POSITIVE: ehr_service_pb2.AB_POSITIVE,
-    BloodType.AB_NEGATIVE: ehr_service_pb2.AB_NEGATIVE,
-    BloodType.O_POSITIVE: ehr_service_pb2.O_POSITIVE,
-    BloodType.O_NEGATIVE: ehr_service_pb2.O_NEGATIVE,
-}
+def serialize_dates(obj):
+    """Recursively serialize date and datetime objects to ISO format strings"""
+    if isinstance(obj, dict):
+        return {key: serialize_dates(value) for key, value in obj.items()}
+    elif isinstance(obj, list):
+        return [serialize_dates(item) for item in obj]
+    elif isinstance(obj, datetime):
+        return obj.isoformat()
+    elif isinstance(obj, date):
+        return obj.isoformat()
+    else:
+        return obj
 
-BLOOD_TYPE_FROM_PROTO = {
-    ehr_service_pb2.A_POSITIVE: BloodType.A_POSITIVE,
-    ehr_service_pb2.A_NEGATIVE: BloodType.A_NEGATIVE,
-    ehr_service_pb2.B_POSITIVE: BloodType.B_POSITIVE,
-    ehr_service_pb2.B_NEGATIVE: BloodType.B_NEGATIVE,
-    ehr_service_pb2.AB_POSITIVE: BloodType.AB_POSITIVE,
-    ehr_service_pb2.AB_NEGATIVE: BloodType.AB_NEGATIVE,
-    ehr_service_pb2.O_POSITIVE: BloodType.O_POSITIVE,
-    ehr_service_pb2.O_NEGATIVE: BloodType.O_NEGATIVE,
-}
+
+def dict_to_struct(data: dict) -> Struct:
+    """Convert Python dict to protobuf Struct, serializing dates first"""
+    # Serialize dates to strings
+    serialized_data = serialize_dates(data)
+
+    # Convert to Struct
+    struct = Struct()
+    struct.update(serialized_data)
+    return struct
 
 
 class GrpcClient:
@@ -49,14 +52,11 @@ class GrpcClient:
 
     async def create_patient(self, patient_data: dict) -> dict:
         """Create a new patient via gRPC"""
+        # Convert dict to protobuf Struct
+        patient_struct = dict_to_struct(patient_data)
+
         request = ehr_service_pb2.CreatePatientRequest(
-            patient_id=patient_data['patient_id'],
-            name=patient_data['name'],
-            birth_date=patient_data['birth_date'].isoformat(),
-            height=patient_data['height'],
-            weight=patient_data['weight'],
-            blood_type=BLOOD_TYPE_TO_PROTO[patient_data['blood_type']],
-            diagnosis=patient_data['diagnosis']
+            patientData=patient_struct
         )
 
         response = await self.stub.CreatePatient(request)
@@ -82,25 +82,14 @@ class GrpcClient:
 
     async def update_patient(self, patient_uuid: str, patient_data: dict) -> dict:
         """Update a patient via gRPC"""
-        # Build request with only provided fields
-        kwargs = {'patient_uuid': patient_uuid}
+        # Convert dict to protobuf Struct
+        update_struct = dict_to_struct(patient_data)
 
-        if 'patient_id' in patient_data and patient_data['patient_id'] is not None:
-            kwargs['patient_id'] = patient_data['patient_id']
-        if 'name' in patient_data and patient_data['name'] is not None:
-            kwargs['name'] = patient_data['name']
-        if 'birth_date' in patient_data and patient_data['birth_date'] is not None:
-            kwargs['birth_date'] = patient_data['birth_date'].isoformat()
-        if 'height' in patient_data and patient_data['height'] is not None:
-            kwargs['height'] = patient_data['height']
-        if 'weight' in patient_data and patient_data['weight'] is not None:
-            kwargs['weight'] = patient_data['weight']
-        if 'blood_type' in patient_data and patient_data['blood_type'] is not None:
-            kwargs['blood_type'] = BLOOD_TYPE_TO_PROTO[patient_data['blood_type']]
-        if 'diagnosis' in patient_data and patient_data['diagnosis'] is not None:
-            kwargs['diagnosis'] = patient_data['diagnosis']
+        request = ehr_service_pb2.UpdatePatientRequest(
+            patient_uuid=patient_uuid,
+            updateData=update_struct
+        )
 
-        request = ehr_service_pb2.UpdatePatientRequest(**kwargs)
         response = await self.stub.UpdatePatient(request)
         return self._patient_proto_to_dict(response.patient)
 
@@ -115,15 +104,26 @@ class GrpcClient:
 
     def _patient_proto_to_dict(self, patient_proto) -> dict:
         """Convert protobuf patient message to dictionary"""
-        return {
+        result = {
             'id': patient_proto.id,
-            'patient_id': patient_proto.patient_id,
-            'name': patient_proto.name,
-            'birth_date': patient_proto.birth_date,
-            'height': patient_proto.height,
-            'weight': patient_proto.weight,
-            'blood_type': BLOOD_TYPE_FROM_PROTO[patient_proto.blood_type],
-            'diagnosis': patient_proto.diagnosis,
+            'version': patient_proto.version,
+            'lastUpdated': patient_proto.lastUpdated,
             'created_at': patient_proto.created_at,
             'updated_at': patient_proto.updated_at
         }
+
+        # Convert Struct fields to dicts
+        if patient_proto.HasField('identity'):
+            result['identity'] = MessageToDict(patient_proto.identity)
+        if patient_proto.HasField('demographics'):
+            result['demographics'] = MessageToDict(patient_proto.demographics)
+        if patient_proto.HasField('contacts'):
+            result['contacts'] = MessageToDict(patient_proto.contacts)
+        if patient_proto.HasField('meta'):
+            result['meta'] = MessageToDict(patient_proto.meta)
+
+        # Convert ListValue fields to Python lists
+        result['conditions'] = [MessageToDict(item) for item in patient_proto.conditions]
+        result['allergies'] = [MessageToDict(item) for item in patient_proto.allergies]
+
+        return result

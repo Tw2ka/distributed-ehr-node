@@ -2,6 +2,10 @@ from fastapi import FastAPI, HTTPException, status, Query
 from fastapi.responses import JSONResponse
 from typing import List
 import grpc.aio
+from dotenv import load_dotenv
+import os
+
+load_dotenv()  # This loads the .env file
 
 from models import (
     PatientCreate,
@@ -21,9 +25,11 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
-# gRPC server configuration
-GRPC_HOST = 'localhost'
-GRPC_PORT = 50051
+# gRPC server configuration from environment variables
+GRPC_HOST = os.getenv('GRPC_HOST', 'localhost')
+GRPC_PORT = int(os.getenv('GRPC_PORT', '50051'))
+API_HOST = os.getenv('API_HOST', '0.0.0.0')
+API_PORT = int(os.getenv('API_PORT', '8080'))
 
 
 @app.get("/", tags=["Health"])
@@ -209,28 +215,6 @@ async def update_patient(patient_uuid: str, patient: PatientUpdate):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.patch(
-    "/patients/{patient_uuid}",
-    response_model=PatientResponse,
-    tags=["Patients"],
-    summary="Partially update patient",
-    responses={
-        200: {"description": "Patient updated successfully"},
-        404: {"model": ErrorResponse, "description": "Patient not found"},
-        400: {"model": ErrorResponse, "description": "Invalid input"},
-        500: {"model": ErrorResponse, "description": "Internal server error"}
-    }
-)
-async def patch_patient(patient_uuid: str, patient: PatientUpdate):
-    """
-    Partially update a patient's information.
-
-    - **patient_uuid**: The unique UUID of the patient
-    - All fields are optional - only provided fields will be updated
-    """
-    # Same implementation as PUT for this use case
-    return await update_patient(patient_uuid, patient)
-
 
 @app.delete(
     "/patients/{patient_uuid}",
@@ -284,15 +268,15 @@ if __name__ == '__main__':
     print("EHR API Gateway - Starting Server")
     print("=" * 60)
     print(f"API Documentation: http://localhost:8080/docs")
-    print(f"Alternative Docs: http://localhost:8080/redoc")
+    print(f"Alternative Docs: http://localhost:{API_PORT}/redoc")
     print(f"gRPC Backend: {GRPC_HOST}:{GRPC_PORT}")
     print("=" * 60)
     print("")
 
     uvicorn.run(
         "main:app",
-        host="0.0.0.0",
-        port=8080,
+        host=API_HOST,
+        port=API_PORT,
         reload=True,
         log_level="info"
     )

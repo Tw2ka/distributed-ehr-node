@@ -6,14 +6,20 @@ from pydantic import Field
 
 
 class DatabaseSettings(BaseSettings):
-    """Database configuration using Pydantic"""
+    """Database configuration using Pydantic v2"""
+
     mongodb_url: str = Field(default="mongodb://localhost:27017", alias="MONGODB_URL")
     database_name: str = Field(default="ehr_database", alias="DATABASE_NAME")
 
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = False
+    grpc_host: str = Field(default="0.0.0.0", alias="GRPC_HOST")
+    grpc_port: int = Field(default=50051, alias="GRPC_PORT")
+
+    model_config = {
+        "extra": "allow",
+        "env_file": ".env",
+        "env_file_encoding": "utf-8",
+        "case_sensitive": False
+    }
 
 
 # Create settings instance
