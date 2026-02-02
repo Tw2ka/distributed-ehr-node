@@ -1,21 +1,33 @@
 from typing import List, Optional
 from uuid import UUID
 from datetime import datetime, timezone
-from models import Patient, PatientCreate, PatientUpdate
+from models import Patient, PatientCreate, PatientUpdate, MetaInfo
 
-# SQLAlchemy-style CRUD operations using Beanie ORM for MongoDB
-# Beanie provides an ORM interface similar to SQLAlchemy
 
 async def create_patient(patient: PatientCreate) -> Patient:
     """
     Create a new patient record using ORM
-    Similar to SQLAlchemy:
-        patient = Patient(**data)
-        session.add(patient)
-        session.commit()
+    Checks for duplicate patientId before creating
     """
+    # Check if patient with this patientId already exists
+    existing_patient = await Patient.find_one(
+        Patient.identity.patientId == patient.identity.patientId
+    )
+
+    if existing_patient:
+        raise ValueError(f"Patient with patientId '{patient.identity.patientId}' already exists")
+
+    # Create metadata
+    meta = MetaInfo(
+        sourceHospital=patient.sourceHospital,
+        replicaVector={}
+    )
+
     # Create Patient document instance from input data
-    patient_obj = Patient(**patient.model_dump())
+    patient_dict = patient.model_dump(exclude={"sourceHospital"})
+    patient_dict["meta"] = meta
+
+    patient_obj = Patient(**patient_dict)
 
     # Save to database (ORM .insert() method)
     await patient_obj.insert()
@@ -26,10 +38,6 @@ async def create_patient(patient: PatientCreate) -> Patient:
 async def get_patient(patient_uuid: UUID) -> Optional[Patient]:
     """
     Retrieve a patient by UUID using ORM
-    Similar to SQLAlchemy:
-        session.query(Patient).filter(Patient.id == uuid).first()
-    or:
-        session.get(Patient, uuid)
     """
     return await Patient.find_one(Patient.id == patient_uuid)
 
@@ -37,8 +45,6 @@ async def get_patient(patient_uuid: UUID) -> Optional[Patient]:
 async def get_all_patients(skip: int = 0, limit: int = 100) -> List[Patient]:
     """
     Retrieve all patients with pagination using ORM
-    Similar to SQLAlchemy:
-        session.query(Patient).offset(skip).limit(limit).all()
     """
     return await Patient.find_all().skip(skip).limit(limit).to_list()
 
@@ -46,12 +52,8 @@ async def get_all_patients(skip: int = 0, limit: int = 100) -> List[Patient]:
 async def update_patient(patient_uuid: UUID, patient_update: PatientUpdate) -> Optional[Patient]:
     """
     Update a patient record using ORM
-    Similar to SQLAlchemy:
-        patient = session.get(Patient, uuid)
-        patient.name = new_name
-        session.commit()
     """
-    # Find the patient (like SQLAlchemy query)
+    # Find the patient
     patient = await Patient.find_one(Patient.id == patient_uuid)
 
     if not patient:
@@ -63,39 +65,32 @@ async def update_patient(patient_uuid: UUID, patient_update: PatientUpdate) -> O
     if not update_data:
         return patient
 
-    # Update the updated_at timestamp
+    # Update the updated_at timestamp and increment version
     update_data["updated_at"] = datetime.now(timezone.utc)
+    update_data["lastUpdated"] = datetime.now(timezone.utc)
+    update_data["version"] = patient.version + 1
 
-    # Update the document (ORM .set() method - similar to SQLAlchemy attribute assignment)
+    # Update the document
     await patient.set(update_data)
 
     return patient
 
 
-async def delete_patient(patient_uuid: UUID) -> bool:
+async def delete_patient(patient_uuid: UUID) -> Optional[bool]:
     """
     Delete a patient record using ORM
-    Similar to SQLAlchemy:
-        patient = session.get(Patient, uuid)
-        session.delete(patient)
-        session.commit()
     """
     patient = await Patient.find_one(Patient.id == patient_uuid)
 
     if not patient:
-        return False
+        return None
 
-    # Delete the document (ORM .delete() method)
     await patient.delete()
     return True
 
 
 async def get_patient_by_patient_id(patient_id: str) -> Optional[Patient]:
     """
-    Retrieve a patient by patient_id field using ORM
-    Similar to SQLAlchemy:
-        session.query(Patient).filter(Patient.patient_id == patient_id).first()
-    or:
-        session.query(Patient).filter_by(patient_id=patient_id).first()
+    Retrieve a patient by patientId field using ORM
     """
-    return await Patient.find_one(Patient.patient_id == patient_id)
+    return await Patient.find_one(Patient.identity.patientId == patient_id)

@@ -2,6 +2,9 @@ syntax = "proto3";
 
 package ehr;
 
+// Import for JSON support
+import "google/protobuf/struct.proto";
+
 // Service definition
 service EhrService {
     // Create a new patient record
@@ -23,42 +26,31 @@ service EhrService {
     rpc DeletePatient(DeletePatientRequest) returns (DeletePatientResponse);
 }
 
-// Blood type enumeration
-enum BloodType {
-    BLOOD_TYPE_UNSPECIFIED = 0;
-    A_POSITIVE = 1;
-    A_NEGATIVE = 2;
-    B_POSITIVE = 3;
-    B_NEGATIVE = 4;
-    AB_POSITIVE = 5;
-    AB_NEGATIVE = 6;
-    O_POSITIVE = 7;
-    O_NEGATIVE = 8;
-}
-
-// Patient message
+// Patient message - uses JSON structure for flexibility
 message PatientMessage {
     string id = 1;  // UUID as string
-    string patient_id = 2;
-    string name = 3;
-    string birth_date = 4;  // ISO format date string (YYYY-MM-DD)
-    int32 height = 5;
-    int32 weight = 6;
-    BloodType blood_type = 7;
-    string diagnosis = 8;
-    string created_at = 9;  // ISO format datetime string
-    string updated_at = 10;  // ISO format datetime string
+    int32 version = 2;
+    string lastUpdated = 3;
+
+    // Use JSON struct for nested complex data
+    google.protobuf.Struct identity = 4;
+    google.protobuf.Struct demographics = 5;
+    google.protobuf.Struct contacts = 6;
+
+    // Clinical data as JSON arrays
+    google.protobuf.ListValue conditions = 7;
+    google.protobuf.ListValue allergies = 8;
+
+    google.protobuf.Struct meta = 9;
+
+    string created_at = 10;
+    string updated_at = 11;
 }
 
 // Request messages
 message CreatePatientRequest {
-    string patient_id = 1;
-    string name = 2;
-    string birth_date = 3;  // ISO format date string (YYYY-MM-DD)
-    int32 height = 4;
-    int32 weight = 5;
-    BloodType blood_type = 6;
-    string diagnosis = 7;
+    // Send patient data as JSON for flexibility
+    google.protobuf.Struct patientData = 1;
 }
 
 message GetPatientRequest {
@@ -76,13 +68,7 @@ message SearchPatientByIdRequest {
 
 message UpdatePatientRequest {
     string patient_uuid = 1;  // UUID as string
-    optional string patient_id = 2;
-    optional string name = 3;
-    optional string birth_date = 4;  // ISO format date string
-    optional int32 height = 5;
-    optional int32 weight = 6;
-    optional BloodType blood_type = 7;
-    optional string diagnosis = 8;
+    google.protobuf.Struct updateData = 2;  // JSON update data
 }
 
 message DeletePatientRequest {

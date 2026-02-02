@@ -1,67 +1,203 @@
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, List, Dict, Any
 from datetime import date, datetime
-from enum import Enum
 
 
-class BloodType(str, Enum):
-    """Blood type enumeration matching the gRPC proto definition"""
-    A_POSITIVE = "A+"
-    A_NEGATIVE = "A-"
-    B_POSITIVE = "B+"
-    B_NEGATIVE = "B-"
-    AB_POSITIVE = "AB+"
-    AB_NEGATIVE = "AB-"
-    O_POSITIVE = "O+"
-    O_NEGATIVE = "O-"
+# Nested models matching ehr-crud-service
+class IdentityInfo(BaseModel):
+    """Patient identity information"""
+    patientId: str = Field(..., description="Unique patient identifier")
+    mrn: Optional[str] = Field(None, description="Medical Record Number")
+    nationalId: Optional[str] = Field(None, description="National ID (hashed)")
 
 
-class PatientBase(BaseModel):
-    """Base patient model with common fields"""
-    patient_id: str = Field(..., description="Patient identifier", example="P001")
-    name: str = Field(..., min_length=1, max_length=255, example="John Doe")
-    birth_date: date = Field(..., example="1990-01-15")
-    height: int = Field(..., gt=0, description="Height in cm", example=175)
-    weight: int = Field(..., gt=0, description="Weight in kg", example=70)
-    blood_type: BloodType = Field(..., example="A+")
-    diagnosis: str = Field(..., max_length=255, example="Healthy")
+class NameInfo(BaseModel):
+    """Patient name structure"""
+    given: str = Field(..., description="Given name")
+    family: str = Field(..., description="Family name")
 
 
-class PatientCreate(PatientBase):
+class Demographics(BaseModel):
+    """Patient demographics"""
+    name: NameInfo
+    dob: date = Field(..., description="Date of birth")
+    sexAtBirth: Optional[str] = Field(None, description="Sex at birth")
+    genderIdentity: Optional[str] = Field(None, description="Gender identity")
+    deceased: bool = Field(default=False)
+
+
+class ContactInfo(BaseModel):
+    """Patient contact information"""
+    address: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+
+
+class Encounter(BaseModel):
+    """Individual encounter/visit record"""
+    encounterId: str
+    type: str
+    start: datetime
+    end: Optional[datetime] = None
+    location: Optional[str] = None
+    provider: Optional[str] = None
+    reason: Optional[str] = None
+
+
+class Condition(BaseModel):
+    """Patient condition/diagnosis"""
+    id: str
+    code: Optional[str] = None
+    system: Optional[str] = None
+    description: str
+    onset: Optional[date] = None
+    status: str = "active"
+    recordedAt: datetime
+    encounterId: Optional[str] = None
+
+
+class Allergy(BaseModel):
+    """Patient allergy information"""
+    substance: str
+    reaction: Optional[str] = None
+    severity: Optional[str] = None
+    status: str = "active"
+    recordedAt: datetime
+
+
+class Medication(BaseModel):
+    """Active medication"""
+    medId: str
+    drug: str
+    dose: Optional[str] = None
+    route: Optional[str] = None
+    frequency: Optional[str] = None
+    start: date
+    end: Optional[date] = None
+    prescriber: Optional[str] = None
+
+
+class MedicationHistory(BaseModel):
+    """Historical medication record"""
+    drug: str
+    start: date
+    end: Optional[date] = None
+    reasonStopped: Optional[str] = None
+
+
+class MedicationsInfo(BaseModel):
+    """Medications section"""
+    active: List[Medication] = Field(default_factory=list)
+    history: List[MedicationHistory] = Field(default_factory=list)
+
+
+class ConsentInfo(BaseModel):
+    """Patient consent information"""
+    allowed: bool = True
+    scope: List[str] = Field(default_factory=list)
+    grantedAt: Optional[datetime] = None
+
+
+class ConsentsInfo(BaseModel):
+    """Consents section"""
+    dataSharing: Optional[ConsentInfo] = None
+
+
+class MetaInfo(BaseModel):
+    """Metadata for distributed system"""
+    sourceHospital: str
+    replicaVector: Dict[str, Any] = Field(default_factory=dict)
+
+
+# Request/Response models
+class PatientCreate(BaseModel):
     """Model for creating a new patient"""
-    pass
+    identity: IdentityInfo
+    demographics: Demographics
+    contacts: Optional[ContactInfo] = None
+    sourceHospital: str = Field(..., description="Name of the hospital node")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "identity": {
+                    "patientId": "P-2026-001",
+                    "mrn": "HOSP-A-123456"
+                },
+                "demographics": {
+                    "name": {
+                        "given": "Jane",
+                        "family": "Doe"
+                    },
+                    "dob": "1984-03-12",
+                    "sexAtBirth": "female",
+                    "genderIdentity": "female",
+                    "deceased": False
+                },
+                "contacts": {
+                    "address": "Helsinki, FI",
+                    "phone": "+358...",
+                    "email": "jane.doe@example.com"
+                },
+                "sourceHospital": "HOSP-A"
+            }
+        }
 
 
 class PatientUpdate(BaseModel):
-    """Model for updating a patient (all fields optional)"""
-    patient_id: Optional[str] = Field(None, description="Patient identifier", example="P001")
-    name: Optional[str] = Field(None, min_length=1, max_length=255, example="John Doe")
-    birth_date: Optional[date] = Field(None, example="1990-01-15")
-    height: Optional[int] = Field(None, gt=0, description="Height in cm", example=175)
-    weight: Optional[int] = Field(None, gt=0, description="Weight in kg", example=70)
-    blood_type: Optional[BloodType] = Field(None, example="A+")
-    diagnosis: Optional[str] = Field(None, max_length=255, example="Healthy")
+    """Model for updating patient - all fields optional"""
+    demographics: Optional[Demographics] = None
+    contacts: Optional[ContactInfo] = None
+    conditions: Optional[List[Condition]] = None
+    allergies: Optional[List[Allergy]] = None
 
 
-class PatientResponse(PatientBase):
-    """Model for patient response including generated fields"""
-    id: str = Field(..., description="UUID of the patient", example="550e8400-e29b-41d4-a716-446655440000")
-    created_at: datetime = Field(..., example="2026-01-26T10:00:00Z")
-    updated_at: datetime = Field(..., example="2026-01-26T10:00:00Z")
+class PatientResponse(BaseModel):
+    """Model for patient response"""
+    id: str
+    version: int
+    lastUpdated: datetime
+    identity: IdentityInfo
+    demographics: Demographics
+    contacts: Optional[ContactInfo] = None
+    conditions: List[Condition] = Field(default_factory=list)
+    allergies: List[Allergy] = Field(default_factory=list)
+    meta: MetaInfo
+    created_at: datetime
+    updated_at: datetime
 
     class Config:
         json_schema_extra = {
             "example": {
                 "id": "550e8400-e29b-41d4-a716-446655440000",
-                "patient_id": "P001",
-                "name": "John Doe",
-                "birth_date": "1990-01-15",
-                "height": 175,
-                "weight": 70,
-                "blood_type": "A+",
-                "diagnosis": "Healthy",
-                "created_at": "2026-01-26T10:00:00Z",
-                "updated_at": "2026-01-26T10:00:00Z"
+                "version": 1,
+                "lastUpdated": "2026-01-25T10:42:31Z",
+                "identity": {
+                    "patientId": "P-2026-001",
+                    "mrn": "HOSP-A-123456"
+                },
+                "demographics": {
+                    "name": {
+                        "given": "Jane",
+                        "family": "Doe"
+                    },
+                    "dob": "1984-03-12",
+                    "sexAtBirth": "female",
+                    "genderIdentity": "female",
+                    "deceased": False
+                },
+                "contacts": {
+                    "address": "Helsinki, FI",
+                    "phone": "+358..."
+                },
+                "conditions": [],
+                "allergies": [],
+                "meta": {
+                    "sourceHospital": "HOSP-A",
+                    "replicaVector": {}
+                },
+                "created_at": "2026-01-25T10:42:31Z",
+                "updated_at": "2026-01-25T10:42:31Z"
             }
         }
 
