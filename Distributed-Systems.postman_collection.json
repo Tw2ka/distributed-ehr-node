@@ -1,0 +1,180 @@
+{
+  "info": {
+    "_postman_id": "cbc69dba-7815-4ca3-a1fc-ec42b41b170b",
+    "name": "Distributed-Systems",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "14823708"
+  },
+  "item": [
+    {
+      "name": "Health check service",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8080/",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            ""
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "patients",
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8080/patients?skip=0&limit=10",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "patients"
+          ],
+          "query": [
+            {
+              "key": "skip",
+              "value": "0"
+            },
+            {
+              "key": "limit",
+              "value": "10"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Get patient by id",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8080/patients/3ff7d63b-52c5-4c82-9571-1634c6053330",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "patients",
+            "3ff7d63b-52c5-4c82-9571-1634c6053330"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Search by patient id",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8080/patients/search/P-2026-001",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "patients",
+            "search",
+            "P-2026-001"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Add Patient",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"identity\": {\r\n    \"patientId\": \"P-2026-001\",\r\n    \"mrn\": \"HOSP-A-123456\"\r\n  },\r\n  \"demographics\": {\r\n    \"name\": {\r\n      \"given\": \"Jane\",\r\n      \"family\": \"Doe\"\r\n    },\r\n    \"dob\": \"1984-03-12\",\r\n    \"deceased\": false\r\n  },\r\n  \"contacts\": {\r\n    \"address\": \"Mannerheimintie 123, 00100 Helsinki, Finland\",\r\n    \"phone\": \"+358-50-123-4567\",\r\n    \"email\": \"john.smith@example.com\"\r\n  },\r\n  \"sourceHospital\": \"HOSP-A\"\r\n}\r\n",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:8080/patients/",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "patients",
+            ""
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Update patient",
+      "request": {
+        "method": "PUT",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"demographics\": {\r\n    \"name\": {\r\n      \"given\": \"Jane\",\r\n      \"family\": \"Doe-Martinez\"\r\n    },\r\n    \"dob\": \"1984-03-12\",\r\n    \"sexAtBirth\": \"female\",\r\n    \"genderIdentity\": \"female\",\r\n    \"deceased\": false\r\n  },\r\n  \"contacts\": {\r\n    \"address\": \"Updated Address 789, 00200 Helsinki, Finland\",\r\n    \"phone\": \"+358-50-111-2222\",\r\n    \"email\": \"updated@example.com\"\r\n  },\r\n  \"conditions\": [\r\n    {\r\n      \"id\": \"cond-001\",\r\n      \"code\": \"E11\",\r\n      \"system\": \"ICD-10\",\r\n      \"description\": \"Type 2 diabetes mellitus\",\r\n      \"onset\": \"2020-05-15\",\r\n      \"status\": \"active\",\r\n      \"recordedAt\": \"2026-02-02T10:00:00Z\"\r\n    }\r\n  ],\r\n  \"allergies\": [\r\n    {\r\n      \"substance\": \"Penicillin\",\r\n      \"reaction\": \"Rash\",\r\n      \"severity\": \"moderate\",\r\n      \"status\": \"active\",\r\n      \"recordedAt\": \"2015-06-20T00:00:00Z\"\r\n    }\r\n  ]\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:8080/patients/3ff7d63b-52c5-4c82-9571-1634c6053330",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "patients",
+            "3ff7d63b-52c5-4c82-9571-1634c6053330"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Delete patient data",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8080/patients/3ff7d63b-52c5-4c82-9571-1634c6053330",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "patients",
+            "3ff7d63b-52c5-4c82-9571-1634c6053330"
+          ]
+        }
+      },
+      "response": []
+    }
+  ]
+}
