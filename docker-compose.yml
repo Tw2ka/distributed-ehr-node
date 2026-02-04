@@ -22,6 +22,28 @@ services:
       retries: 5
       start_period: 10s
 
+  # RabbitMQ Message Broker
+  rabbitmq:
+    image: rabbitmq:4.1.8-management
+    container_name: ehr-rabbitmq
+    restart: unless-stopped
+    ports:
+      - "5672:5672"    # AMQP port
+      - "15672:15672"  # Management UI
+    environment:
+      - RABBITMQ_DEFAULT_USER=admin
+      - RABBITMQ_DEFAULT_PASS=admin123
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - ehr-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   # EHR CRUD Service (gRPC Server)
   ehr-crud-service:
     build:
@@ -88,3 +110,6 @@ volumes:
   mongodb_config:
     driver: local
     name: ehr-mongodb-config
+  rabbitmq_data:
+    driver: local
+    name: ehr-rabbitmq-data

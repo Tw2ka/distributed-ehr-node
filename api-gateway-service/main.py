@@ -1,11 +1,10 @@
 from fastapi import FastAPI, HTTPException, status, Query
-from fastapi.responses import JSONResponse
 from typing import List
 import grpc.aio
 from dotenv import load_dotenv
 import os
 
-load_dotenv()  # This loads the .env file
+load_dotenv()
 
 from models import (
     PatientCreate,
@@ -25,7 +24,7 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
-# gRPC server configuration from environment variables
+# Configuration from environment variables
 GRPC_HOST = os.getenv('GRPC_HOST', 'localhost')
 GRPC_PORT = int(os.getenv('GRPC_PORT', '50051'))
 API_HOST = os.getenv('API_HOST', '0.0.0.0')
@@ -58,13 +57,11 @@ async def create_patient(patient: PatientCreate):
     """
     Create a new patient record.
 
-    - **patient_id**: Unique patient identifier
-    - **name**: Patient's full name
-    - **birth_date**: Date of birth (YYYY-MM-DD)
-    - **height**: Height in centimeters
-    - **weight**: Weight in kilograms
-    - **blood_type**: Blood type (A+, A-, B+, B-, AB+, AB-, O+, O-)
-    - **diagnosis**: Medical diagnosis
+    - **patientId**: Unique patient identifier (e.g., P-2026-001)
+    - **identity**: Patient identity information (patientId, mrn, nationalId)
+    - **demographics**: Name, date of birth, sex, gender, deceased status
+    - **contacts**: Address, phone, email
+    - **sourceHospital**: Name of the hospital node creating the record
     """
     try:
         async with GrpcClient(GRPC_HOST, GRPC_PORT) as client:
@@ -248,30 +245,16 @@ async def delete_patient(patient_uuid: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# Error handler for general exceptions
-@app.exception_handler(Exception)
-async def general_exception_handler(request, exc):
-    """Handle uncaught exceptions"""
-    return JSONResponse(
-        status_code=500,
-        content={"detail": f"Internal server error: {str(exc)}"}
-    )
-
-
 if __name__ == '__main__':
     import uvicorn
-
-    #TODO: ACTUALLY THIS SERVICE WILL SEND REQUESTS TO A MQ.
-    # THIS IS PHASE 1 IMPLEMENTATION DIRECTLY TO GRPC SERVER
 
     print("=" * 60)
     print("EHR API Gateway - Starting Server")
     print("=" * 60)
-    print(f"API Documentation: http://localhost:8080/docs")
+    print(f"API Documentation: http://localhost:{API_PORT}/docs")
     print(f"Alternative Docs: http://localhost:{API_PORT}/redoc")
     print(f"gRPC Backend: {GRPC_HOST}:{GRPC_PORT}")
     print("=" * 60)
-    print("")
 
     uvicorn.run(
         "main:app",
